@@ -132,8 +132,8 @@ void chip8_cycle(CHIP8* cpu)
                     break;
 
                 case SUB_OP_SHR_X:
-                    uint8_t least_significant = cpu->v[instruction.x] & 1;
-                    if (least_significant == 1)
+                    // least_significant = cpu->v[instruction.x] & 1;
+                    if ((cpu->v[instruction.x] & 1) == 1)
                     {
                         cpu->v[REGISTER_VF] = 1;
                     }
@@ -154,9 +154,11 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->v[REGISTER_VF] = 0;
                     }
                     cpu->v[instruction.x] = cpu->v[instruction.y] - cpu->v[instruction.x];
+                    break;
+
                 case SUB_OP_SHL_X:
-                    uint8_t most_significant = cpu->v[instruction.x] >> 7; 
-                    if (most_significant == 1)
+                    // most_significant = cpu->v[instruction.x] >> 7; 
+                    if ((cpu->v[instruction.x] >> 7) == 1)
                     {
                         cpu->v[REGISTER_VF] = 1;
                     }
@@ -164,7 +166,9 @@ void chip8_cycle(CHIP8* cpu)
                     {
                         cpu->v[REGISTER_VF] = 0;
                     }
-                    cpu->v[instruction.x] = cpu->v[instruction.x] << 1; 
+                        cpu->v[instruction.x] = cpu->v[instruction.x] << 1;
+                        break;
+
             }
     }
     // jumps to the next instruction
