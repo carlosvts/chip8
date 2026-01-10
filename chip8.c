@@ -6,7 +6,7 @@
 
 void chip8_init(CHIP8* cpu)
 {
-    memset(cpu->memory, 0, SIZE_4KB);
+    memset(cpu->memory,0, SIZE_4KB);
     memset(cpu->v, 0, REGISTER_COUNT);
     cpu->pc = INTERPRETER_RESERVED_MEMORY; // sets program counter to 512byte since 0 and 511 are reserved
 }
@@ -54,9 +54,121 @@ void chip8_cycle(CHIP8* cpu)
             break;
 
         case OP_CALL:
+            cpu->stack_pointer++; 
+            if (cpu->stack_pointer > 15) { return; }
+            cpu->stack[cpu->stack_pointer] = cpu->pc;
+            cpu->stack_pointer = instruction.nnn;
             break;
-    }
 
+        case OP_SKIP_X_EQ_BYTE:
+            if (cpu->v[instruction.x] == instruction.nn)
+            {
+                cpu->pc += 2; 
+            }
+            break;
+        
+        case OP_SKIP_X_NE_BYTE:
+            if (cpu->v[instruction.x] != instruction.nn)
+            {
+                cpu->pc += 2;
+            }
+            break;
+
+        case OP_SKIP_X_EQ_Y:
+            if (cpu->v[instruction.x] == cpu->v[instruction.y])
+            {
+                cpu->pc += 2;
+            }
+            break;
+
+        case OP_LOAD_X_BYTE:
+            cpu->v[instruction.x] = instruction.nn; 
+            break;
+
+        case OP_ADD_X_BYTE:
+            instruction.x += instruction.nn;
+            break;
+
+        case OP_ARITHMETIC:
+            switch (instruction.n)
+            {
+                case SUB_OP_LOAD_X_Y:
+                    cpu->v[instruction.x] = cpu->v[instruction.y];
+                    break;
+                case SUB_OP_OR_X_Y:
+                    cpu->v[instruction.x] = cpu->v[instruction.x] | cpu->v[instruction.y];
+                    break;
+                case SUB_OP_AND_X_Y:
+                    cpu->v[instruction.x] = cpu->v[instruction.x] & cpu->v[instruction.y];
+                    break;
+                case SUB_OP_XOR_X_Y:
+                    cpu->v[instruction.x] = cpu->v[instruction.x] ^ cpu->v[instruction.y];
+                    break;
+
+                case SUB_OP_ADD_X_Y:
+                    uint16_t addition = cpu->v[instruction.x] + cpu->v[instruction.y];
+                    if (addition > 255)
+                    {
+                        // v[15]
+                        cpu->v[REGISTER_VF] = 1;
+                    }
+                    else 
+                    {
+                        cpu->v[REGISTER_VF] = 0;
+                    }
+                    cpu->v[instruction.x] = cpu->v[instruction.x] + cpu->v[instruction.y];
+                    break;
+
+                case SUB_OP_SUB_X_Y:
+                    if (cpu->v[instruction.x] >= cpu->v[instruction.y])
+                    {
+                        cpu->v[REGISTER_VF] = 1;
+                    }
+                    else 
+                    {
+                        cpu->v[REGISTER_VF] = 0;
+                    }
+                    cpu->v[instruction.x] -= cpu->v[instruction.y];
+                    break;
+
+                case SUB_OP_SHR_X:
+                    uint8_t least_significant = cpu->v[instruction.x] & 1;
+                    if (least_significant == 1)
+                    {
+                        cpu->v[REGISTER_VF] = 1;
+                    }
+                    else 
+                    {
+                        cpu->v[REGISTER_VF] = 0;
+                    }
+                    cpu->v[instruction.x] = cpu->v[instruction.x] >> 1;
+                    break;
+
+                case SUB_OP_SUBN_X_Y:
+                    if (cpu->v[instruction.y] >= cpu->v[instruction.x])
+                    {
+                        cpu->v[REGISTER_VF] = 1;
+                    }
+                    else 
+                    {
+                        cpu->v[REGISTER_VF] = 0;
+                    }
+                    cpu->v[instruction.x] = cpu->v[instruction.y] - cpu->v[instruction.x];
+                case SUB_OP_SHL_X:
+                    uint8_t most_significant = cpu->v[instruction.x] >> 7; 
+                    if (most_significant == 1)
+                    {
+                        cpu->v[REGISTER_VF] = 1;
+                    }
+                    else
+                    {
+                        cpu->v[REGISTER_VF] = 0;
+                    }
+                    cpu->v[instruction.x] = cpu->v[instruction.x] << 1; 
+            }
+    }
+    // jumps to the next instruction
+    cpu->pc += 2;
 }
 
 
