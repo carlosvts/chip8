@@ -33,3 +33,31 @@ void load_rom(CHIP8* cpu, char *path)
     fread(cpu->memory + cpu->pc, sizeof(uint8_t), size, file_pointer);
 }
 
+void chip8_cycle(CHIP8* cpu)
+{
+    Instruction instruction; 
+
+    // big endian 
+    uint16_t opcode = (cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1];
+    
+    instruction.type = (opcode & 0XF000) >> 12; 
+    instruction.x = (opcode & 0X0F00) >> 8;
+    instruction.y = (opcode & 0X00F0) >> 4; 
+    instruction.n = (opcode & 0X000F);
+    instruction.nn = (opcode & 0X00FF);
+    instruction.nnn = (opcode & 0x0FFF);
+
+    switch (instruction.type)
+    {
+        case OP_JUMP:
+            cpu->pc = instruction.nnn;
+            break;
+
+        case OP_CALL:
+            break;
+    }
+
+}
+
+
+
