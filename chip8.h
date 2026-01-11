@@ -9,6 +9,7 @@
 #define REGISTER_VF 0xF
 #define STACK_SIZE 16 
 #define INTERPRETER_RESERVED_MEMORY 0x200
+#define FONTSET_STARTPOINT 0x50
 
 /*
  *  The follow defines was extracted by Cowgod's Chip-8 Thecnical Reference v1.0
@@ -92,4 +93,5 @@ void chip8_init(CHIP8* cpu);
 void load_rom(CHIP8* cpu, char* path);
 // fetch-decode-execute
 void chip8_cycle(CHIP8* cpu);
+void chip8_run(CHIP8* cpu);
 #endif 

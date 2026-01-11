@@ -6,10 +6,34 @@
 #include <stdbool.h>
 #include <stdlib.h> 
 #include <stdio.h>
+#include <sys/types.h>
 #include <time.h> 
 
 void chip8_init(CHIP8* cpu)
 {
+    const uint8_t fontset[80] = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+
+    for (int i = 0; i < 80; ++i)
+    {
+        cpu->memory[FONTSET_STARTPOINT + i] = fontset[i];
+    }
     memset(cpu->memory,0, SIZE_4KB);
     memset(cpu->v, 0, REGISTER_COUNT);
     cpu->pc = INTERPRETER_RESERVED_MEMORY; // sets program counter to 512byte since 0 and 511 are reserved
@@ -249,7 +273,86 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->pc += 2;
                     }
             }
-            
+
+        case OP_MISCELLANEOUS:
+            switch(instruction.nn)
+            {
+                case SUB_OP_LOAD_X_DT:
+                {
+                    cpu->v[instruction.x] = cpu->delay;
+                    break;
+                }
+                case SUB_OP_WAIT_FOR_KEY:
+                {   
+                    bool key_pressed = false;
+                    for (int i = 0; i < 16; ++i)
+                    {
+                        // if pressed
+                        if (cpu->keypad[i] != 0)
+                        {
+                            cpu->v[instruction.x] = i;
+                            key_pressed = true;
+                            break;
+                        }
+                    }
+                    // if not pressed, retracts pc so he will check this instruction again
+                    if (!key_pressed)
+                    {
+                        cpu->pc -= 2;    
+                    }
+                    break; 
+                }
+                case SUB_OP_SET_DT_X:
+                {
+                    cpu->delay = cpu->v[instruction.x];
+                    break;
+                }
+                case SUB_OP_SET_ST_X:
+                {
+                    cpu->sound_timer = cpu->v[instruction.x];
+                    break;
+                }
+                case SUB_OP_ADD_I_X:
+                {
+                    cpu->i += cpu->v[instruction.x];
+                    break;
+                }
+                case SUB_OP_LOAD_F_X:
+                {
+                    //  our write in the fontset costs 5 bytes
+                    cpu->i = FONTSET_STARTPOINT + (cpu->v[instruction.x] * 5); 
+                    break;
+                }
+                case SUB_OP_STORE_BCD_X:
+                {
+                    uint8_t value = cpu->v[instruction.x];
+                    
+                    // get hundreds
+                    cpu->memory[cpu->i] = value / 100;
+                    // get tens
+                    cpu->memory[cpu->i + 1] = (value / 100) % 10;
+                    // get unity
+                    cpu->memory[cpu->i + 2] = value % 10;
+                    break;
+                }
+                case SUB_OP_STORE_REGS_I:
+                {
+                        // reg stands for register 
+                    for (int reg = 0; reg <= instruction.x; ++reg)
+                    {
+                        cpu->memory[cpu->i + reg] = cpu->v[reg];
+                    }
+                    break;  
+                }
+                case SUB_OP_LOAD_REGS_I:
+                {
+                    for (int reg = 0; reg <= instruction.x; ++reg)
+                    {
+                        cpu->v[reg] = cpu->memory[cpu->i + reg]; 
+                    }
+                    break;
+                }
+            }
     }
     // jumps to the next instruction
     if (shouldjump) { cpu->pc += 2; }
