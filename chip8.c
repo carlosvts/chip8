@@ -1,6 +1,8 @@
 #include "chip8.h"
 
+#include <SDL2/SDL_error.h>
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_log.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_video.h>
@@ -58,7 +60,7 @@ void load_rom(CHIP8* cpu, const char *path)
     FILE* file_pointer = fopen(path, (const char*) "rb");
     if (file_pointer == NULL)
     {
-        perror("Error while opening file: ");
+        perror("CHIP8: Error while opening file: ");
         return;  
     }
     fseek(file_pointer, 0, SEEK_END);
@@ -66,7 +68,7 @@ void load_rom(CHIP8* cpu, const char *path)
     long size = ftell(file_pointer);
     if (size >= SIZE_4KB - INTERPRETER_RESERVED_MEMORY)
     {
-        printf("Your file is too big for a chip 8 engine! terminating.\n");
+        printf("CHIP8: Your file is too big for a chip 8 engine! terminating.\n");
         return; 
     }
     // move filepointer back to the begining 
@@ -81,12 +83,7 @@ void chip8_cycle(CHIP8* cpu)
 
     // big endian 
     uint16_t opcode = ((cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1]);
-    printf("Executando PC: 0x%03X | Opcode: 0x%04X\n", cpu->pc, opcode);
     
-    if (cpu->pc == 0x200) {
-        printf("PRIMEIRO OPCODE DA ROM (em 0x200): %04X\n", opcode);
-    }
-
     bool shouldjump = true; 
     
     // populating instruction struct 
@@ -100,11 +97,6 @@ void chip8_cycle(CHIP8* cpu)
     // buffer for drawing sprite 
     uint8_t sprite_byte;
     uint8_t bit; 
-
-    if ((opcode & 0xF000) == 0xE000) {
-        printf("DEBUG TECLADO: Opcode original: %04X | X extraído: %d | Vx: %d\n", 
-               opcode, instruction.x, cpu->v[instruction.x]);
-    }
 
     switch (instruction.type)
     {  
@@ -124,7 +116,7 @@ void chip8_cycle(CHIP8* cpu)
             }
             break;
         case OP_JUMP:
-            printf("SALTO DETECTADO: Indo para 0x%03X\n", instruction.nnn);
+            // printf("SALTO DETECTADO: Indo para 0x%03X\n", instruction.nnn);
             cpu->pc = instruction.nnn;
             shouldjump = false;
             break;
@@ -452,10 +444,16 @@ void chip8_run(CHIP8* cpu)
     bool game_running = true;
 
     SDL_Window* pwindow = SDL_CreateWindow("CHIP8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    if (!pwindow) { printf("Error while creating SDL window\n%s", SDL_GetError()); return; }
+    
     SDL_Renderer* prenderer = SDL_CreateRenderer(pwindow, -1, 0);
+    if (!prenderer) { printf("Error while generating renderer\n%s", SDL_GetError()); return; }
+
     uint32_t last_tick = SDL_GetTicks();
+    
     Mix_Chunk* coin_sound = Mix_LoadWAV("assets/coin.wav");
     double time_per_cycle = 1000.0 / CPU_HERTZ; 
+    
     while (game_running)
     {
         SDL_Event event;
