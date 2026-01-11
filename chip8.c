@@ -1,14 +1,20 @@
 #include "chip8.h"
+
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h> 
 #include <stdio.h>
-#include <errno.h>
+#include <time.h> 
 
 void chip8_init(CHIP8* cpu)
 {
     memset(cpu->memory,0, SIZE_4KB);
     memset(cpu->v, 0, REGISTER_COUNT);
     cpu->pc = INTERPRETER_RESERVED_MEMORY; // sets program counter to 512byte since 0 and 511 are reserved
+    // random from current time
+    srand(time(NULL));
 }
 
 void load_rom(CHIP8* cpu, char *path)
@@ -37,15 +43,22 @@ void chip8_cycle(CHIP8* cpu)
 {
     Instruction instruction; 
 
+    bool shouldjump = true; 
+
     // big endian 
     uint16_t opcode = (cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1];
     
+    // populating instruction struct 
     instruction.type = (opcode & 0XF000) >> 12; 
     instruction.x = (opcode & 0X0F00) >> 8;
     instruction.y = (opcode & 0X00F0) >> 4; 
     instruction.n = (opcode & 0X000F);
     instruction.nn = (opcode & 0X00FF);
     instruction.nnn = (opcode & 0x0FFF);
+    
+    // buffer for drawing sprite 
+    uint8_t sprite_byte;
+    uint8_t bit; 
 
     switch (instruction.type)
     {
@@ -64,6 +77,7 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] == instruction.nn)
             {
                 cpu->pc += 2; 
+                shouldjump = false; 
             }
             break;
         
@@ -71,6 +85,7 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] != instruction.nn)
             {
                 cpu->pc += 2;
+                shouldjump = false;
             }
             break;
 
@@ -78,6 +93,7 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] == cpu->v[instruction.y])
             {
                 cpu->pc += 2;
+                shouldjump = false; 
             }
             break;
 
@@ -168,11 +184,55 @@ void chip8_cycle(CHIP8* cpu)
                     }
                         cpu->v[instruction.x] = cpu->v[instruction.x] << 1;
                         break;
-
+                case OP_SKIP_X_NE_Y:
+                    if (cpu->v[instruction.x != cpu->v[instruction.y]])
+                    {
+                        cpu->pc += 2;
+                        shouldjump = false; 
+                    }
+                    break;
+                case OP_LOAD_I_ADDR:
+                    cpu->i = instruction.nnn; 
+                    break;
+                case OP_JUMP_V0_ADDR:
+                    cpu->pc = instruction.nnn + cpu->v[0];
+                    shouldjump = false;
+                    break;
+                case OP_RANDOM_X_BYTE:
+                {
+                    // random number between 0 and 255 
+                    // just simplified the formula: rand() % (max - min + 1) + min 
+                    // since min is zero
+                    cpu->v[instruction.x] = (rand() % 256) & instruction.nn; 
+                } 
+                case OP_DRAW_SPRITE:
+                    // loop through bites and check each bit 
+                    cpu->v[REGISTER_VF] = 0;
+                    for (int i = 0; i < instruction.n; ++i)
+                    {
+                        sprite_byte = cpu->memory[cpu->i + i];
+                        for (int col = 0; col < 8; col++)
+                        {
+                            // 0x80 is 01000000
+                            bit = sprite_byte & (0x80 >> col);
+                            if (bit != 0)
+                            {
+                                // sorry for spaghetiness, but here i apply the formula to converts 2d(grid) into 1d(display in memory)
+                                // index = y * width + x
+                                // checks for colision
+                                if (cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)] == 1)
+                                {
+                                    cpu->v[REGISTER_VF] = 1;
+                                }    
+                                // aplly XOR
+                                cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)]  ^= 1;
+                            }
+                        }
+                    } 
             }
     }
     // jumps to the next instruction
-    cpu->pc += 2;
+    if (shouldjump) { cpu->pc += 2; }
 }
 
 
