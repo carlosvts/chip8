@@ -58,6 +58,8 @@ From the project root:
 
 **Note on Paths:** If you execute the binary from inside the build/ folder, you must adjust the relative path to the ROM (e.g., ../roms/YourGame.ch8). The program uses your current terminal location (CWD) to resolve where the file is.
 
+**Note on CHIP8 Games:** CHIP8 has some variatons of ROMS, make sure the games that you donwloaded have a size of 4KB (4096 bytes).
+
 ### Audio Customization
 The emulator supports custom audio feedback. You can change the sounds played by the system by replacing the files in the `assets/` folder.
 
