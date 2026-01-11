@@ -33,23 +33,28 @@ The engine uses a **Big-Endian** memory architecture to fetch 16-bit opcodes, wh
 ### Prerequisites
 Before compiling, ensure you have the development libraries for SDL2 and SDL2_mixer installed. On Fedora, run:
 
+```
 sudo dnf install SDL2-devel SDL2_mixer-devel cmake make gcc
+```
 
 You can check SDL2 documentation for installation in other distros and systems. 
 
 ### Compiling
 This project uses CMake for an out-of-source build to keep the repository clean. This means all temporary compilation files stay inside a dedicated folder:
-
+```
 1. mkdir build
 2. cd build
 3. cmake ..
 4. make
+```
 
 ### Running a Game
 The emulator requires a CHIP-8 ROM to run. Acquire a game file (e.g., Pong.ch8), place it in the roms/ folder, and pass the path as a command-line argument:
 
 From the project root:
+```
 ./build/chip8 ./roms/YourGame.ch8
+```
 
 **Note on Paths:** If you execute the binary from inside the build/ folder, you must adjust the relative path to the ROM (e.g., ../roms/YourGame.ch8). The program uses your current terminal location (CWD) to resolve where the file is.
 
