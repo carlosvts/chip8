@@ -68,6 +68,7 @@ typedef struct CHIP8
     uint16_t i;                    // index register  
     uint16_t pc;                   // program counter 
     uint16_t stack[STACK_SIZE];    // used to call subroutines and functions
+    uint8_t keypad[16];            // chip8 keypad 1 pressed 0 not pressed 
     uint8_t stack_pointer;         // normal stack pointer, points to the top 
     uint8_t delay;                 // delay at 60hz 
     uint8_t sound_timer;            

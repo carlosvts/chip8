@@ -184,52 +184,72 @@ void chip8_cycle(CHIP8* cpu)
                     }
                         cpu->v[instruction.x] = cpu->v[instruction.x] << 1;
                         break;
-                case OP_SKIP_X_NE_Y:
-                    if (cpu->v[instruction.x != cpu->v[instruction.y]])
+            } 
+
+        case OP_SKIP_X_NE_Y:
+            if (cpu->v[instruction.x != cpu->v[instruction.y]])
+            {
+                cpu->pc += 2;
+                shouldjump = false; 
+            }
+            break;
+        case OP_LOAD_I_ADDR:
+            cpu->i = instruction.nnn; 
+            break;
+        case OP_JUMP_V0_ADDR:
+            cpu->pc = instruction.nnn + cpu->v[0];
+            shouldjump = false;
+            break;
+        case OP_RANDOM_X_BYTE:
+            // random number between 0 and 255 
+            // just simplified the formula: rand() % (max - min + 1) + min 
+            // since min is zero
+            cpu->v[instruction.x] = (rand() % 256) & instruction.nn;
+            break; 
+        case OP_DRAW_SPRITE:
+            // loop through bites and check each bit 
+            cpu->v[REGISTER_VF] = 0;
+            for (int i = 0; i < instruction.n; ++i)
+            {
+                sprite_byte = cpu->memory[cpu->i + i];
+                for (int col = 0; col < 8; col++)
+                {
+                    // 0x80 is 01000000
+                    bit = sprite_byte & (0x80 >> col);
+                    if (bit != 0)
                     {
+                        // sorry for spaghetiness, but here i apply the formula to converts 2d(grid) into 1d(display in memory)
+                        // index = y * width + x
+                        // checks for colision
+                        if (cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)] == 1)
+                        {
+                            cpu->v[REGISTER_VF] = 1;
+                        }    
+                        // aplly XOR
+                        cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)]  ^= 1;
+                    }
+                }
+            }
+            break;
+             
+        case OP_KEY_INPUT:
+            switch(instruction.nn)
+            {
+                case SUB_OP_SKIP_IF_KEY:
+                    if (cpu->keypad[cpu->v[instruction.x]] == 1)
+                    {
+                        shouldjump = false;
                         cpu->pc += 2;
-                        shouldjump = false; 
                     }
                     break;
-                case OP_LOAD_I_ADDR:
-                    cpu->i = instruction.nnn; 
-                    break;
-                case OP_JUMP_V0_ADDR:
-                    cpu->pc = instruction.nnn + cpu->v[0];
-                    shouldjump = false;
-                    break;
-                case OP_RANDOM_X_BYTE:
-                {
-                    // random number between 0 and 255 
-                    // just simplified the formula: rand() % (max - min + 1) + min 
-                    // since min is zero
-                    cpu->v[instruction.x] = (rand() % 256) & instruction.nn; 
-                } 
-                case OP_DRAW_SPRITE:
-                    // loop through bites and check each bit 
-                    cpu->v[REGISTER_VF] = 0;
-                    for (int i = 0; i < instruction.n; ++i)
+                case SUB_OP_SKIP_IF_NO_KEY:
+                    if (cpu->keypad[cpu->v[instruction.x]] == 0)
                     {
-                        sprite_byte = cpu->memory[cpu->i + i];
-                        for (int col = 0; col < 8; col++)
-                        {
-                            // 0x80 is 01000000
-                            bit = sprite_byte & (0x80 >> col);
-                            if (bit != 0)
-                            {
-                                // sorry for spaghetiness, but here i apply the formula to converts 2d(grid) into 1d(display in memory)
-                                // index = y * width + x
-                                // checks for colision
-                                if (cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)] == 1)
-                                {
-                                    cpu->v[REGISTER_VF] = 1;
-                                }    
-                                // aplly XOR
-                                cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)]  ^= 1;
-                            }
-                        }
-                    } 
+                        shouldjump = false;
+                        cpu->pc += 2;
+                    }
             }
+            
     }
     // jumps to the next instruction
     if (shouldjump) { cpu->pc += 2; }
