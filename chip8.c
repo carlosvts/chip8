@@ -485,7 +485,6 @@ void chip8_run(CHIP8* cpu)
                     case SDLK_f: cpu->keypad[14] = state; break;
                     case SDLK_v: cpu->keypad[15] = state; break;
                 }
-                if (cpu->keypad[15] == 1) { printf("F pressed\n"); }
             } 
         }
         
