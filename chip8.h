@@ -11,6 +11,15 @@
 #define INTERPRETER_RESERVED_MEMORY 0x200
 #define FONTSET_STARTPOINT 0x50
 
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 320
+#define SCALE 10 
+
+#define CPU_HERTZ 500
+#define TIMER_HERTZ 60
+// +1 for rouding up and give the CPU a margin
+#define CYCLES_PER_FRAME (CPU_HERTZ / TIMER_HERTZ) + 1 
+
 /*
  *  The follow defines was extracted by Cowgod's Chip-8 Thecnical Reference v1.0
  *  http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#0.0
@@ -90,8 +99,9 @@ typedef struct
 // initialize all values and points the stackpointer before the first 512 bits
 void chip8_init(CHIP8* cpu);
 // load game
-void load_rom(CHIP8* cpu, char* path);
+void load_rom(CHIP8* cpu, const char* path);
 // fetch-decode-execute
 void chip8_cycle(CHIP8* cpu);
 void chip8_run(CHIP8* cpu);
+void update_timers(CHIP8* cpu);
 #endif 

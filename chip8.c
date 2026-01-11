@@ -1,5 +1,9 @@
 #include "chip8.h"
 
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_video.h>
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
@@ -8,6 +12,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h> 
+
+#include <SDL2/SDL.h>
 
 void chip8_init(CHIP8* cpu)
 {
@@ -41,7 +47,7 @@ void chip8_init(CHIP8* cpu)
     srand(time(NULL));
 }
 
-void load_rom(CHIP8* cpu, char *path)
+void load_rom(CHIP8* cpu, const char *path)
 {
     FILE* file_pointer = fopen(path, (const char*) "rb");
     if (file_pointer == NULL)
@@ -67,10 +73,10 @@ void chip8_cycle(CHIP8* cpu)
 {
     Instruction instruction; 
 
-    bool shouldjump = true; 
-
     // big endian 
     uint16_t opcode = (cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1];
+    
+    bool shouldjump = true; 
     
     // populating instruction struct 
     instruction.type = (opcode & 0XF000) >> 12; 
@@ -207,14 +213,15 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->v[REGISTER_VF] = 0;
                     }
                         cpu->v[instruction.x] = cpu->v[instruction.x] << 1;
-                        break;
+                    break;
             } 
+        break;
 
         case OP_SKIP_X_NE_Y:
             if (cpu->v[instruction.x != cpu->v[instruction.y]])
             {
                 cpu->pc += 2;
-                shouldjump = false; 
+                shouldjump = false;
             }
             break;
         case OP_LOAD_I_ADDR:
@@ -273,6 +280,7 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->pc += 2;
                     }
             }
+        break;
 
         case OP_MISCELLANEOUS:
             switch(instruction.nn)
@@ -358,5 +366,111 @@ void chip8_cycle(CHIP8* cpu)
     if (shouldjump) { cpu->pc += 2; }
 }
 
+void update_timers(CHIP8* cpu)
+{
+    if (cpu->delay > 0)
+    {
+        cpu->delay--;
+    }
+    if (cpu->sound_timer > 0)
+    {
+        cpu->sound_timer--;
+    }
+}
+
+void render(CHIP8* cpu, SDL_Renderer* renderer)
+{
+    // black background
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    
+    // draw white pixel
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    // display array
+    for (int y = 0; y < 32; ++y)
+    {
+        for (int x = 0; x < 64; ++x)
+        {
+            // if has a value, it means it has a pixel 
+            if (cpu->display[y * 64 + x])
+            {
+                SDL_Rect rect;
+                rect.x = x * SCALE;
+                rect.y = y * SCALE;
+                rect.h = SCALE;
+                rect.w = SCALE;
+                SDL_RenderFillRect(renderer, &rect);
+            }
+        }
+    }
+
+    // updates screen 
+    SDL_RenderPresent(renderer);
+}
+
+void chip8_run(CHIP8* cpu)
+{
+    bool game_running = true;
+
+    SDL_Window* pwindow = SDL_CreateWindow("CHIP8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    SDL_Renderer* prenderer = SDL_CreateRenderer(pwindow, -1, 0);
+    uint32_t last_tick = SDL_GetTicks();
+    
+    while (game_running)
+    {
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                printf("exiting chip8!\n");
+                game_running = false;
+            }
+            if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) 
+            {
+                uint8_t state = (event.type == SDL_KEYDOWN) ? 1 : 0;
+                
+                switch (event.key.keysym.sym) 
+                {
+                    case SDLK_x: cpu->keypad[0] = state; break;
+                    case SDLK_1: cpu->keypad[1] = state; break;
+                    case SDLK_2: cpu->keypad[2] = state; break;
+                    case SDLK_3: cpu->keypad[3] = state; break;
+                    case SDLK_q: cpu->keypad[4] = state; break;
+                    case SDLK_w: cpu->keypad[5] = state; break;
+                    case SDLK_e: cpu->keypad[6] = state; break;
+                    case SDLK_a: cpu->keypad[7] = state; break;
+                    case SDLK_s: cpu->keypad[8] = state; break;
+                    case SDLK_d: cpu->keypad[9] = state; break;
+                    case SDLK_z: cpu->keypad[10] = state; break;
+                    case SDLK_c: cpu->keypad[11] = state; break;
+                    case SDLK_4: cpu->keypad[12] = state; break;
+                    case SDLK_r: cpu->keypad[13] = state; break;
+                    case SDLK_f: cpu->keypad[14] = state; break;
+                    case SDLK_v: cpu->keypad[15] = state; break;
+                }
+            } 
+        }
+
+        // runs a few times to be more dynamic 
+        for (int i = 0; i < CYCLES_PER_FRAME; i++)
+        {
+            chip8_cycle(cpu);
+        }
+
+        uint32_t current_time = SDL_GetTicks();
+        if (current_time - last_tick >= 16) // 
+        {
+            update_timers(cpu);
+            render(cpu, prenderer);
+            last_tick = current_time;
+        }
+
+        SDL_Delay(1); // aprox 60 fps;
+    }
+    SDL_DestroyRenderer(prenderer);
+    SDL_DestroyWindow(pwindow);
+}
 
 
