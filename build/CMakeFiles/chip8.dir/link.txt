@@ -1,0 +1,1 @@
+/usr/bin/cc -Wl,--dependency-file=CMakeFiles/chip8.dir/link.d CMakeFiles/chip8.dir/main.c.o CMakeFiles/chip8.dir/chip8.c.o -o chip8   -L/usr/local/lib  -Wl,-rpath,/usr/local/lib /usr/local/lib/libSDL2.so /usr/lib64/libSDL2_mixer.so

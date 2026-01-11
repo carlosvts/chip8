@@ -1,0 +1,3 @@
+/home/carlosvts/coding/lowlevel/cprogramming/chip8/build/CMakeFiles/chip8.dir
+/home/carlosvts/coding/lowlevel/cprogramming/chip8/build/CMakeFiles/edit_cache.dir
+/home/carlosvts/coding/lowlevel/cprogramming/chip8/build/CMakeFiles/rebuild_cache.dir

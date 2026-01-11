@@ -96,8 +96,7 @@ void chip8_cycle(CHIP8* cpu)
     
     // buffer for drawing sprite 
     uint8_t sprite_byte;
-    uint8_t bit; 
-
+    
     switch (instruction.type)
     {  
 
@@ -452,7 +451,6 @@ void chip8_run(CHIP8* cpu)
     uint32_t last_tick = SDL_GetTicks();
     
     Mix_Chunk* coin_sound = Mix_LoadWAV("assets/coin.wav");
-    double time_per_cycle = 1000.0 / CPU_HERTZ; 
     
     while (game_running)
     {
