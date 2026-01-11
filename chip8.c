@@ -455,7 +455,7 @@ void chip8_run(CHIP8* cpu)
     SDL_Renderer* prenderer = SDL_CreateRenderer(pwindow, -1, 0);
     uint32_t last_tick = SDL_GetTicks();
     Mix_Chunk* coin_sound = Mix_LoadWAV("assets/coin.wav");
-    cpu->keypad[15] = 1; 
+    double time_per_cycle = 1000.0 / CPU_HERTZ; 
     while (game_running)
     {
         SDL_Event event;
@@ -492,16 +492,16 @@ void chip8_run(CHIP8* cpu)
                 if (cpu->keypad[15] == 1) { printf("F pressed\n"); }
             } 
         }
-
-        // runs a few times to be more dynamic 
-        for (int i = 0; i < CYCLES_PER_FRAME; i++)
-        {
-            chip8_cycle(cpu);
-        }
-
+        
         uint32_t current_time = SDL_GetTicks();
+
         if (current_time - last_tick >= 16) // 
         {
+            for (int i = 0; i < CYCLES_PER_FRAME; i++)
+            {
+                chip8_cycle(cpu);
+            }
+
             update_timers(cpu);
             if (cpu->sound_timer > 0)
             {
@@ -517,8 +517,7 @@ void chip8_run(CHIP8* cpu)
             render(cpu, prenderer);
             last_tick = current_time;
         }
-
-        SDL_Delay(1); // aprox 60 fps;
+        SDL_Delay(1);
     }
     SDL_DestroyRenderer(prenderer);
     SDL_DestroyWindow(pwindow);
