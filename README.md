@@ -2,8 +2,6 @@
 
 A low-level system emulator developed in C that implements a virtual CPU, memory management, and peripheral IO to interpret and execute CHIP-8 ROMS.
 
-_the project that taught me the importance of a clean state_ 
-
 This project implements a complete virtual machine architecture, including a Fetch-Decode-Execute cycle, a custom fontset, and integration with SDL2 for graphics, sound (coin.wav), and keyboard input.
 
 ![C](https://img.shields.io/badge/c-%2300599C.svg?style=for-the-badge&logo=c&logoColor=white)![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)![SDL2](https://img.shields.io/badge/SDL2-5B2D90?style=for-the-badge&logo=sdl&logoColor=white)
