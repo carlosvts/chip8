@@ -4,6 +4,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_video.h>
+#include <SDL2/SDL_mixer.h>
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
@@ -35,6 +36,8 @@ void chip8_init(CHIP8* cpu)
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
+    
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     for (int i = 0; i < 80; ++i)
     {
@@ -91,16 +94,31 @@ void chip8_cycle(CHIP8* cpu)
     uint8_t bit; 
 
     switch (instruction.type)
-    {
+    {   
+        case OP_SYSTEM:
+            if (instruction.nn == SUB_OP_CLS)
+            {
+                memset(cpu->display, 0, sizeof(cpu->display));
+                break;
+            }
+            else if(instruction.nn == SUB_OP_RET)
+            {
+                cpu->stack_pointer--; 
+                cpu->pc = cpu->stack[cpu->stack_pointer];
+                break;
+            }
+            break;
         case OP_JUMP:
             cpu->pc = instruction.nnn;
+            shouldjump = false;
             break;
 
         case OP_CALL:
-            cpu->stack_pointer++; 
             if (cpu->stack_pointer > 15) { return; }
             cpu->stack[cpu->stack_pointer] = cpu->pc;
-            cpu->stack_pointer = instruction.nnn;
+            cpu->stack_pointer++;
+            cpu->pc = instruction.nnn;
+            shouldjump = false;
             break;
 
         case OP_SKIP_X_EQ_BYTE:
@@ -132,7 +150,7 @@ void chip8_cycle(CHIP8* cpu)
             break;
 
         case OP_ADD_X_BYTE:
-            instruction.x += instruction.nn;
+            cpu->v[instruction.x] += cpu->v[instruction.nn];
             break;
 
         case OP_ARITHMETIC:
@@ -218,7 +236,7 @@ void chip8_cycle(CHIP8* cpu)
         break;
 
         case OP_SKIP_X_NE_Y:
-            if (cpu->v[instruction.x != cpu->v[instruction.y]])
+            if (cpu->v[instruction.x] != cpu->v[instruction.y])
             {
                 cpu->pc += 2;
                 shouldjump = false;
@@ -238,6 +256,7 @@ void chip8_cycle(CHIP8* cpu)
             cpu->v[instruction.x] = (rand() % 256) & instruction.nn;
             break; 
         case OP_DRAW_SPRITE:
+        {
             // loop through bites and check each bit 
             cpu->v[REGISTER_VF] = 0;
             for (int i = 0; i < instruction.n; ++i)
@@ -245,24 +264,19 @@ void chip8_cycle(CHIP8* cpu)
                 sprite_byte = cpu->memory[cpu->i + i];
                 for (int col = 0; col < 8; col++)
                 {
-                    // 0x80 is 01000000
-                    bit = sprite_byte & (0x80 >> col);
-                    if (bit != 0)
+                    uint8_t x = (cpu->v[instruction.x] + col) % 64;
+                    uint8_t y = (cpu->v[instruction.y] + i) % 32;
+                    uint16_t index = (y * 64) + x;
+
+                    if (cpu->display[index] == 1)
                     {
-                        // sorry for spaghetiness, but here i apply the formula to converts 2d(grid) into 1d(display in memory)
-                        // index = y * width + x
-                        // checks for colision
-                        if (cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)] == 1)
-                        {
-                            cpu->v[REGISTER_VF] = 1;
-                        }    
-                        // aplly XOR
-                        cpu->display[ ( (( (cpu->v[instruction.y] + i) % 32) * 64)  + (cpu->v[instruction.x] + col) % 64)]  ^= 1;
+                        cpu->v[REGISTER_VF] = 1;
                     }
+                    cpu->display[index] ^= 1;
                 }
             }
             break;
-             
+        }    
         case OP_KEY_INPUT:
             switch(instruction.nn)
             {
@@ -338,7 +352,7 @@ void chip8_cycle(CHIP8* cpu)
                     // get hundreds
                     cpu->memory[cpu->i] = value / 100;
                     // get tens
-                    cpu->memory[cpu->i + 1] = (value / 100) % 10;
+                    cpu->memory[cpu->i + 1] = (value / 10) % 10;
                     // get unity
                     cpu->memory[cpu->i + 2] = value % 10;
                     break;
@@ -416,7 +430,8 @@ void chip8_run(CHIP8* cpu)
     SDL_Window* pwindow = SDL_CreateWindow("CHIP8", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer* prenderer = SDL_CreateRenderer(pwindow, -1, 0);
     uint32_t last_tick = SDL_GetTicks();
-    
+    Mix_Chunk* coin_sound = Mix_LoadWAV("assets/coin.wav");
+
     while (game_running)
     {
         SDL_Event event;
@@ -463,6 +478,17 @@ void chip8_run(CHIP8* cpu)
         if (current_time - last_tick >= 16) // 
         {
             update_timers(cpu);
+            if (cpu->sound_timer > 0)
+            {
+                if (!Mix_Playing(0))
+                {
+                    Mix_PlayChannel(0, coin_sound, -1); // -1 for loop
+                }
+                else
+                {
+                    Mix_HaltChannel(0); // stops when timer is over
+                }
+            }
             render(cpu, prenderer);
             last_tick = current_time;
         }

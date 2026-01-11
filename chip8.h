@@ -43,6 +43,10 @@
 #define OP_KEY_INPUT       0xE  // Ex__ - Keyboard skip instructions
 #define OP_MISCELLANEOUS   0xF  // Fx__ - Timers, memory, and utility family
 
+// System Sub-types
+#define SUB_OP_CLS 0XE0
+#define SUB_OP_RET 0xEE
+
 // Arithmetic Sub-types (Last Nibble)
 #define SUB_OP_LOAD_X_Y    0x0  // 8xy0 - Vx = Vy
 #define SUB_OP_OR_X_Y      0x1  // 8xy1 - Vx = Vx | Vy
