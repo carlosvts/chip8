@@ -37,8 +37,9 @@ void chip8_init(CHIP8* cpu)
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
     
-    memset(cpu->memory,0, SIZE_4KB);
-    memset(cpu->v, 0, REGISTER_COUNT);
+    memset(cpu, 0, sizeof(CHIP8));
+    //  memset(cpu->memory,0, SIZE_4KB);
+    //  memset(cpu->v, 0, REGISTER_COUNT);
     // random from current time
     srand(time(NULL));
     
@@ -49,6 +50,7 @@ void chip8_init(CHIP8* cpu)
         cpu->memory[FONTSET_STARTPOINT + i] = fontset[i];
     }
     cpu->pc = INTERPRETER_RESERVED_MEMORY; // sets program counter to 512byte since 0 and 511 are reserved
+    
 }
 
 void load_rom(CHIP8* cpu, const char *path)
@@ -117,6 +119,7 @@ void chip8_cycle(CHIP8* cpu)
             {
                 cpu->stack_pointer--; 
                 cpu->pc = cpu->stack[cpu->stack_pointer];
+                shouldjump = false;
                 break;
             }
             break;
@@ -128,7 +131,7 @@ void chip8_cycle(CHIP8* cpu)
 
         case OP_CALL:
             if (cpu->stack_pointer > 15) { return; }
-            cpu->stack[cpu->stack_pointer] = cpu->pc;
+            cpu->stack[cpu->stack_pointer] = cpu->pc + 2; // + 2 because its next instruction
             cpu->stack_pointer++;
             cpu->pc = instruction.nnn;
             shouldjump = false;
@@ -156,7 +159,7 @@ void chip8_cycle(CHIP8* cpu)
             break;
 
         case OP_LOAD_X_BYTE:
-            cpu->v[instruction.x] = instruction.nn; 
+            cpu->v[instruction.x] = (uint8_t) instruction.nn; 
             break;
 
         case OP_ADD_X_BYTE:
@@ -171,12 +174,15 @@ void chip8_cycle(CHIP8* cpu)
                     break;
                 case SUB_OP_OR_X_Y:
                     cpu->v[instruction.x] = cpu->v[instruction.x] | cpu->v[instruction.y];
+                    cpu->v[REGISTER_VF] = 0;
                     break;
                 case SUB_OP_AND_X_Y:
                     cpu->v[instruction.x] = cpu->v[instruction.x] & cpu->v[instruction.y];
+                    cpu->v[REGISTER_VF] = 0; 
                     break;
                 case SUB_OP_XOR_X_Y:
                     cpu->v[instruction.x] = cpu->v[instruction.x] ^ cpu->v[instruction.y];
+                    cpu->v[REGISTER_VF] = 0;
                     break;
 
                 case SUB_OP_ADD_X_Y:
@@ -246,7 +252,7 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->v[instruction.x] = cpu->v[instruction.x] << 1;
                     break;
             } 
-        break;
+            break;
 
         case OP_SKIP_X_NE_Y:
             if (cpu->v[instruction.x] != cpu->v[instruction.y])
@@ -311,7 +317,7 @@ void chip8_cycle(CHIP8* cpu)
                         cpu->pc += 2;
                     }
             }
-        break;
+            break;
 
         case OP_MISCELLANEOUS:
             switch(instruction.nn)
@@ -392,6 +398,7 @@ void chip8_cycle(CHIP8* cpu)
                     break;
                 }
             }
+            break;
     }
     // jumps to the next instruction
     if (shouldjump) { cpu->pc += 2; }

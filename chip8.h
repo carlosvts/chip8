@@ -18,7 +18,7 @@
 #define CPU_HERTZ 500
 #define TIMER_HERTZ 60
 // +1 for rouding up and give the CPU a margin
-#define CYCLES_PER_FRAME  1 
+#define CYCLES_PER_FRAME  (CPU_HERTZ / TIMER_HERTZ) + 1 
 
 /*
  *  The follow defines was extracted by Cowgod's Chip-8 Thecnical Reference v1.0
