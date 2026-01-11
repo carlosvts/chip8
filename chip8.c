@@ -37,17 +37,18 @@ void chip8_init(CHIP8* cpu)
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
     
+    memset(cpu->memory,0, SIZE_4KB);
+    memset(cpu->v, 0, REGISTER_COUNT);
+    // random from current time
+    srand(time(NULL));
+    
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     for (int i = 0; i < 80; ++i)
     {
         cpu->memory[FONTSET_STARTPOINT + i] = fontset[i];
     }
-    memset(cpu->memory,0, SIZE_4KB);
-    memset(cpu->v, 0, REGISTER_COUNT);
     cpu->pc = INTERPRETER_RESERVED_MEMORY; // sets program counter to 512byte since 0 and 511 are reserved
-    // random from current time
-    srand(time(NULL));
 }
 
 void load_rom(CHIP8* cpu, const char *path)
@@ -78,6 +79,7 @@ void chip8_cycle(CHIP8* cpu)
 
     // big endian 
     uint16_t opcode = (cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1];
+    printf("Executando PC: 0x%03X | Opcode: 0x%04X\n", cpu->pc, opcode);
     
     bool shouldjump = true; 
     
@@ -125,7 +127,6 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] == instruction.nn)
             {
                 cpu->pc += 2; 
-                shouldjump = false; 
             }
             break;
         
@@ -133,7 +134,6 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] != instruction.nn)
             {
                 cpu->pc += 2;
-                shouldjump = false;
             }
             break;
 
@@ -141,7 +141,6 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] == cpu->v[instruction.y])
             {
                 cpu->pc += 2;
-                shouldjump = false; 
             }
             break;
 
@@ -170,30 +169,33 @@ void chip8_cycle(CHIP8* cpu)
                     break;
 
                 case SUB_OP_ADD_X_Y:
-                    uint16_t addition = cpu->v[instruction.x] + cpu->v[instruction.y];
-                    if (addition > 255)
-                    {
-                        // v[15]
-                        cpu->v[REGISTER_VF] = 1;
+                    {   
+                        uint8_t val_x = cpu->v[instruction.x];
+                        uint8_t val_y = cpu->v[instruction.y];
+                        uint16_t addition = (uint16_t) val_x + (uint16_t) val_y;
+                        cpu->v[instruction.x] = (uint8_t) (addition & 0xFF); // truncate for 8 bit
+                        if (addition > 255)
+                        {
+                            // v[15]
+                            cpu->v[REGISTER_VF] = 1;
+                        }
+                        else 
+                        {
+                            cpu->v[REGISTER_VF] = 0;
+                        }
+                        break;
                     }
-                    else 
-                    {
-                        cpu->v[REGISTER_VF] = 0;
-                    }
-                    cpu->v[instruction.x] = cpu->v[instruction.x] + cpu->v[instruction.y];
-                    break;
 
                 case SUB_OP_SUB_X_Y:
-                    if (cpu->v[instruction.x] >= cpu->v[instruction.y])
                     {
-                        cpu->v[REGISTER_VF] = 1;
+                        uint8_t val_x = cpu->v[instruction.x];
+                        uint8_t val_y = cpu->v[instruction.y];
+                        uint8_t not_borrow = (val_x >= val_y) ? 1 : 0;
+                    
+                        cpu->v[instruction.x] = val_x - val_y;
+                        cpu->v[REGISTER_VF] = not_borrow;
+                        break;
                     }
-                    else 
-                    {
-                        cpu->v[REGISTER_VF] = 0;
-                    }
-                    cpu->v[instruction.x] -= cpu->v[instruction.y];
-                    break;
 
                 case SUB_OP_SHR_X:
                     // least_significant = cpu->v[instruction.x] & 1;
@@ -239,7 +241,6 @@ void chip8_cycle(CHIP8* cpu)
             if (cpu->v[instruction.x] != cpu->v[instruction.y])
             {
                 cpu->pc += 2;
-                shouldjump = false;
             }
             break;
         case OP_LOAD_I_ADDR:
@@ -264,15 +265,18 @@ void chip8_cycle(CHIP8* cpu)
                 sprite_byte = cpu->memory[cpu->i + i];
                 for (int col = 0; col < 8; col++)
                 {
-                    uint8_t x = (cpu->v[instruction.x] + col) % 64;
-                    uint8_t y = (cpu->v[instruction.y] + i) % 32;
-                    uint16_t index = (y * 64) + x;
-
-                    if (cpu->display[index] == 1)
+                    if ((sprite_byte & (0x80 >> col)) != 0)
                     {
-                        cpu->v[REGISTER_VF] = 1;
+                        uint8_t x = (cpu->v[instruction.x] + col) % 64;
+                        uint8_t y = (cpu->v[instruction.y] + i) % 32;
+                        uint16_t index = (y * 64) + x;
+
+                        if (cpu->display[index] == 1)
+                        {
+                            cpu->v[REGISTER_VF] = 1;
+                        }
+                        cpu->display[index] ^= 1;
                     }
-                    cpu->display[index] ^= 1;
                 }
             }
             break;
@@ -281,16 +285,14 @@ void chip8_cycle(CHIP8* cpu)
             switch(instruction.nn)
             {
                 case SUB_OP_SKIP_IF_KEY:
-                    if (cpu->keypad[cpu->v[instruction.x]] == 1)
+                    if (cpu->keypad[cpu->v[instruction.x]] != 0)
                     {
-                        shouldjump = false;
                         cpu->pc += 2;
                     }
                     break;
                 case SUB_OP_SKIP_IF_NO_KEY:
                     if (cpu->keypad[cpu->v[instruction.x]] == 0)
                     {
-                        shouldjump = false;
                         cpu->pc += 2;
                     }
             }
@@ -431,7 +433,7 @@ void chip8_run(CHIP8* cpu)
     SDL_Renderer* prenderer = SDL_CreateRenderer(pwindow, -1, 0);
     uint32_t last_tick = SDL_GetTicks();
     Mix_Chunk* coin_sound = Mix_LoadWAV("assets/coin.wav");
-
+    cpu->keypad[15] = 1; 
     while (game_running)
     {
         SDL_Event event;
@@ -465,6 +467,7 @@ void chip8_run(CHIP8* cpu)
                     case SDLK_f: cpu->keypad[14] = state; break;
                     case SDLK_v: cpu->keypad[15] = state; break;
                 }
+                if (cpu->keypad[15] == 1) { printf("F pressed\n"); }
             } 
         }
 
