@@ -78,9 +78,13 @@ void chip8_cycle(CHIP8* cpu)
     Instruction instruction; 
 
     // big endian 
-    uint16_t opcode = (cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1];
+    uint16_t opcode = ((cpu->memory[cpu->pc] << 8) | cpu->memory[cpu->pc + 1]);
     printf("Executando PC: 0x%03X | Opcode: 0x%04X\n", cpu->pc, opcode);
     
+    if (cpu->pc == 0x200) {
+        printf("PRIMEIRO OPCODE DA ROM (em 0x200): %04X\n", opcode);
+    }
+
     bool shouldjump = true; 
     
     // populating instruction struct 
@@ -95,8 +99,14 @@ void chip8_cycle(CHIP8* cpu)
     uint8_t sprite_byte;
     uint8_t bit; 
 
+    if ((opcode & 0xF000) == 0xE000) {
+        printf("DEBUG TECLADO: Opcode original: %04X | X extraído: %d | Vx: %d\n", 
+               opcode, instruction.x, cpu->v[instruction.x]);
+    }
+
     switch (instruction.type)
-    {   
+    {  
+
         case OP_SYSTEM:
             if (instruction.nn == SUB_OP_CLS)
             {
@@ -111,6 +121,7 @@ void chip8_cycle(CHIP8* cpu)
             }
             break;
         case OP_JUMP:
+            printf("SALTO DETECTADO: Indo para 0x%03X\n", instruction.nnn);
             cpu->pc = instruction.nnn;
             shouldjump = false;
             break;
@@ -149,7 +160,7 @@ void chip8_cycle(CHIP8* cpu)
             break;
 
         case OP_ADD_X_BYTE:
-            cpu->v[instruction.x] += cpu->v[instruction.nn];
+            cpu->v[instruction.x] += (uint8_t) instruction.nn;
             break;
 
         case OP_ARITHMETIC:
@@ -224,7 +235,7 @@ void chip8_cycle(CHIP8* cpu)
 
                 case SUB_OP_SHL_X:
                     // most_significant = cpu->v[instruction.x] >> 7; 
-                    if ((cpu->v[instruction.x] >> 7) == 1)
+                    if ((cpu->v[instruction.x] >> 7) & 0x1)
                     {
                         cpu->v[REGISTER_VF] = 1;
                     }
@@ -267,15 +278,19 @@ void chip8_cycle(CHIP8* cpu)
                 {
                     if ((sprite_byte & (0x80 >> col)) != 0)
                     {
-                        uint8_t x = (cpu->v[instruction.x] + col) % 64;
-                        uint8_t y = (cpu->v[instruction.y] + i) % 32;
+                        uint8_t x = (cpu->v[instruction.x] + col) % 64; // % 64
+                        uint8_t y = (cpu->v[instruction.y] + i) % 32; // % 32
+                        
                         uint16_t index = (y * 64) + x;
-
-                        if (cpu->display[index] == 1)
+                        if (index < 2048)
                         {
-                            cpu->v[REGISTER_VF] = 1;
+                                if (cpu->display[index] == 1)
+                                {
+                                    cpu->v[REGISTER_VF] = 1;
+                                }
+                                cpu->display[index] ^= 1;
                         }
-                        cpu->display[index] ^= 1;
+                        else { printf("calcualtion error in index! \n"); }
                     }
                 }
             }
