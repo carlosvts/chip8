@@ -53,6 +53,16 @@ From the project root:
 
 **Note on Paths:** If you execute the binary from inside the build/ folder, you must adjust the relative path to the ROM (e.g., ../roms/YourGame.ch8). The program uses your current terminal location (CWD) to resolve where the file is.
 
+### Audio Customization
+The emulator supports custom audio feedback. You can change the sounds played by the system by replacing the files in the `assets/` folder.
+
+To ensure compatibility:
+* Use only `.wav` files.
+* The files must be located inside the `assets/` directory.
+* Ensure the filename matches what is defined in your `Mix_LoadWAV` call (default is `coin.wav`).
+
+If the emulator cannot find the audio file at the specified path, the sound subsystem will fail to load the chunk, but the CPU emulation will continue to run.
+
 ## CPU Architecture Logic
 
 ### Instruction Decoding (The Brain)
